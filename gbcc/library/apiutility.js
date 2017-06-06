@@ -1,15 +1,75 @@
+let parser = require('xml2json');
+
+let cleanData = (data) => {
+
+  console.log('calling clean data :: ');
+
+  if(!data){ return {}; }
+
+  return {
+    tid: data.tid || '',
+    titleNid: data.titleNid || '',
+    previewNid: data.previewNid || '',
+    previewDuration: data.previewDuration || '',
+    bcHLS: data.bcHLS ||''
+  };
+};
+
 /**************************
 *  Data and url callbacks
 **************************/
 
+exports.getData = (http, data, dcb, ucb, resolve, reject) => {
+  let url = ucb(data);
+
+  http.get(url, function(res){
+    let rawdata = '';
+
+    res.on('error', (err) => {
+      console.log('getData on error is :: ', err);
+      reject(err);
+    });
+
+    res.on('data', (chunk) => { rawdata += chunk; } );
+
+    res.on('end', () => {
+
+      if(!rawdata){
+        data.err.push('mising raw data');
+
+        reject(data);
+      }
+
+      let output = {};
+
+      try{
+        output = parser.toJson(rawdata, {object: true, sanitize: true});
+
+        dcb(output, data);
+
+        console.log('calling resolve after processing url :: ', url);
+
+        data.err.push('HCF');
+        reject(data);
+        //resolve(data);
+      }
+      catch(err){
+        data.err.push(err);
+        reject(data);
+      }
+    });
+  });
+};
+
 exports.vocabDataCB = (input, output) => {
     output.tid = input.response.terms.term[0].tid;
+
     return output;
   };
 
-exports.vocabUrlCB = (tid) => {
+exports.vocabUrlCB = (data) => {
 
-  return 'http://d6api.gaia.com/vocabulary/1/' + tid;
+  return 'http://d6api.gaia.com/vocabulary/1/' + data.tid;
 };
 
 exports.termDataCB = (input, output) => {
@@ -57,6 +117,9 @@ exports.mediaUrlCB = (data) => {
   return 'http://d6api.gaia.com/media/'+ data.previewNid;
 };
 
-exports.end = (req, res, data) => {
-
+exports.end = (data) => {
+  let _data = cleanData(data);
+  console.log(':: calling end in util :: ');
+  data.res.setHeader('Content-Type', 'application/json');
+  data.res.send(JSON.stringify(_data));
 };

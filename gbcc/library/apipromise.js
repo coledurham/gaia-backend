@@ -1,7 +1,7 @@
 'use strict'
 
 let http = require('http');
-let parser = require('xml2json');
+
 let util = require('./apiutility')
 
 
@@ -12,113 +12,55 @@ let util = require('./apiutility')
 * retrieving data and 
 * returning final data
 ***************************/
-let end = (req, res, data) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(data));
-};
 
-let processData = (req, res, tid, cb) => {
-  let url = 'http://d6api.gaia.com/vocabulary/1/' + tid;
-  cb = cb || getVocab;
 
-  cb(req, res, url, getTerm);
-};
-
-let processdata = (req, res, tid, cb) => {
-  var main = Promise.resolve({});
+let processData = (req, res, tid) => {
+  var main = Promise.resolve({req: req, res: res, tid: tid, err: []});
   
   main
-    .then(getVocab)
-    .then(getTerm)
-    .then(getMedia)
-    .then(end)
-    .catch(errorhandler);
+    .then(getVocab, (err)=>{console.log('error handler at vocab :: ', err.err); return err;})
+    .then(getTerm, (err)=>{console.log('error handler at term :: ', err.err); return err;})
+    .then(getMedia, (err)=>{console.log('error handler at media :: ', err.err); return err;})
+    .then(end, end);
+};
+
+let errorHandler = (err) => {
+  console.log('executing error handler');
+  //util.end(req, res, { error: err, tid: err});
+  //util.end(err);
+  return err
 };
 
 //Retireve the vocabulary data
-let getVocab = (req, res, url, cb) => {
-  let data = {};
+let getVocab = (data) => {
 
-  http.get(url, function(resp){
-    let rawdata = '';
-
-    resp.on('error', (err)=> { end(req, res, {}); } );
-
-    resp.on('data', (chunk)=> { rawdata += chunk});
-
-    resp.on('end', ()=> {
-
-      if(!rawdata){
-        end(req, res, {});
-      }
-
-      let output = parser.toJson(rawdata, {object: true, sanitize: true});
-
-      let tid = output.response.terms.term[0].tid;
-
-      cb(req, res, data, ('http://d6api.gaia.com/videos/term/'+ tid), getMedia);
-
-    });
+  return new Promise((resolve, reject) => {
+    util.getData(http, data, util.vocabDataCB, util.vocabUrlCB, resolve, reject);
   });
 };
 
 //Retrieve the term data
-let getTerm = (req, res, data, url, cb)=> {
+let getTerm = (data)=> {
 
-  http.get(url, function(resp){
-    let rawdata = '';
-
-    resp.on('data', (chunk)=> { rawdata += chunk});
-
-    resp.on('end', ()=> {
-      let output = parser.toJson(rawdata, {object: true, sanitize: true}),
-          titles = output.response.titles,
-          index = 0,
-          maxDuration = 0,
-          title = null;
-
-      for(var i = 0; i<titles.title.length; i++){
-        if(titles.title[i]
-            &&
-            titles.title[i].preview
-            &&
-            titles.title[i].preview.duration != undefined
-            &&
-          parseInt(titles.title[i].preview.duration) > maxDuration){
-          maxDuration = parseInt(titles.title[i].preview.duration);
-          index = i;
-        }
-      }
-      title = titles.title[index];
-
-      data.titleNid = title.nid;
-      data.previewNid = title.preview.nid;
-      data.previewDuration = title.preview.duration;
-
-      getMedia(req, res, data, ('http://d6api.gaia.com/media/'+ data.previewNid), end);
-
-    });
-
+  return new Promise((resolve, reject) => {
+    util.getData(http, data, util.termDataCB, util.termUrlCB, resolve, reject);
   });
 
 };
 
-let getMedia = (req, res, data, url, cb) => {
+//Retrieve the media data
+let getMedia = (data) => {
 
-  http.get(url, function(resp){
-    let rawdata = '';
-
-    resp.on('data', (chunk)=> { rawdata += chunk});
-
-    resp.on('end', ()=> {
-      let output = parser.toJson(rawdata, {object: true, sanitize: true});
-
-      data.bcHLS = output.response.mediaUrls.bcHLS;
-
-      cb(req, res, data);
-    });
-
+  return new Promise((resolve, reject) => {
+    util.getData(http, data, util.mediaDataCB, util.mediaUrlCB, resolve, reject);
   });
+};
+
+//End the request
+let end = (data) => {
+   return new Promise((resolve, reject) => {
+      util.end(data);
+   });
 };
 
 exports.processData = processData;
