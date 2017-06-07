@@ -1,10 +1,10 @@
 'use strict'
 
+//Import http for executing http requests to api endpoints
 let http = require('http');
 
+//Import apiutility module with helper functions
 let util = require('./apiutility')
-
-
 
 
 /**************************
@@ -13,7 +13,13 @@ let util = require('./apiutility')
 * returning final data
 ***************************/
 
-
+/************************************
+* Entry point to retrieve data;
+* chains promises to retrieve data
+* and return formatted results.
+*
+* prams: request, response, tid
+************************************/
 let processData = (req, res, tid) => {
   var main = Promise.resolve({req: req, res: res, tid: tid, err: []});
   
@@ -22,13 +28,6 @@ let processData = (req, res, tid) => {
     .then(getTerm, (err)=>{console.log('error handler at term :: ', err.err); return err;})
     .then(getMedia, (err)=>{console.log('error handler at media :: ', err.err); return err;})
     .then(end, end);
-};
-
-let errorHandler = (err) => {
-  console.log('executing error handler');
-  //util.end(req, res, { error: err, tid: err});
-  //util.end(err);
-  return err
 };
 
 //Retireve the vocabulary data
@@ -63,4 +62,8 @@ let end = (data) => {
    });
 };
 
+/************************************
+* Expose the entry point function
+* to be called
+************************************/
 exports.processData = processData;

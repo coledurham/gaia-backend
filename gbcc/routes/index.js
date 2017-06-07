@@ -1,12 +1,14 @@
 'use strict'
 
+//Import our express out, setup router and import apipromise library
 var express = require('express');
 var router = express.Router();
 var api = require('../library/apipromise');
 
 //API route with cpatuirng
 router.get('/terms/:tid/longest-preview-media-url', function(req, res, next){
-  api.processData(req, res, req.params.tid);
+	//Hand rquest off to processData request to
+	api.processData(req, res, req.params.tid);
 });
 
 //Defalut route for capturing invlaid/unuspported urls
